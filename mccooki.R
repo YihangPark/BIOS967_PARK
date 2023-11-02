@@ -1,4 +1,4 @@
-mccooki <- read.csv("C:/Users/user/Documents/GitHub/BIOS967_PARK/data/mccooki.csv")
+mccooki <- read.csv("data/mccooki.csv")
 mccooki
 model1 <- glm(Copsuccess ~ Fcond + Cond..Lt.S. + Fcond*Cond..Lt.S., family=binomial(link="logit"),data=mccooki)
 
