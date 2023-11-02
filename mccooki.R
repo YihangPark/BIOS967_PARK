@@ -3,6 +3,8 @@ library(tidyverse)
 mccooki <- read.csv("data/mccooki.csv")
 mccooki
 
+library(tidyverse)
+
 ## separate light and substrate variables
 mccooki=mccooki %>% 
   mutate(light.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=1, end=1)) %>% 
@@ -11,12 +13,13 @@ mccooki=mccooki %>%
 
 mccooki
 
-model1 <- glm(cop.success~ Fcond + Cond..Lt.S. + Fcond*Cond..Lt.S., family=binomial(link="logit"),data=mccooki)
+model1 <- glm(cop.success~ Fcond + light.condition + substrate.condition + Fcond*light.condition + Fcond*substrate.condition + light.condition*substrate.condition, family=binomial(link="logit"),data=mccooki)
 summary(model1)
 anova(model1, test="Chisq") #to get overall effects of factors (without reference level) from glm, use the argument test="Chisq"
 
-mccooki$Copsuccess = as.factor(mccooki$Copsucces)
-mccooki$Fcond = as.factor(mccooki$Fcond)
-mccooki$ Cond..Lt.S. = as.factor(mccooki$ Cond..Lt.S.)
+#my trial 20231102
+colnames(mccooki)
+
+
 
 summary(model1)
