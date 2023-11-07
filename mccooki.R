@@ -4,7 +4,9 @@ mccooki <- read.csv("data/mccooki.csv")
 mccooki
 
 library(tidyverse)
-
+library(dplyr)
+library(nnet)
+install.packages("nnet")
 ## separate light and substrate variables
 mccooki=mccooki %>% 
   mutate(light.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=1, end=1)) %>% 
@@ -18,8 +20,22 @@ summary(model1)
 anova(model1, test="Chisq") #to get overall effects of factors (without reference level) from glm, use the argument test="Chisq"
 
 #my trial 20231102
+mccooki=mccooki %>% 
+  mutate_all(na_if, "")
+
+#let's run multinomial logistic regression with 1st copulated males(high/low diet and NA; 3 factors) as response variables
+colnames(mccooki)[colnames(mccooki) == "fisrtcop.male"] ="firstcop.male"
 colnames(mccooki)
+mccooki$firstcop.male <-as.factor (mccooki$firstcop.male)
+model2 <-multinom(firstcop.male ~ Fcond +light.condition + substrate.condition + Fcond*light.condition + Fcond*substrate.condition + light.condition*substrate.condition,data=mccooki) 
+model_summary2<- summary(model2)
+model_summary2
 
+#tried to rum two-tailed Z test and p-value
+z <- model_summary2$coefficients/model_summary2$standard.errors
+p <- (1 - pnorm(abs(z), 0, 1))*2
 
-
-summary(model1)
+#let's make a messy tables with coefficient + p-value.....
+rbind(model_summary2$coefficients[1,],model_summary2$standard.errors[1,],z[1,],p[1,])
+rownames(mccooki) <- c("Coefficient","Std. Errors","z stat","p value")
+knitr::kable(mccooki)
