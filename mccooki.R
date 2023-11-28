@@ -1,12 +1,12 @@
 
 mccooki <- read.csv("data/mccooki.csv")
 mccooki
-
 library(tidyverse)
 library(dplyr)
 library(nnet)
-install.packages("nnet")
-## separate light and substrate variables
+
+# due to the disorganized coding of the visual (light) and vibratory (substrate) signaling environment on the raw data file in a single column, separate the light and substrate variables into distinct columns
+#use mutate function from dplyr package to make new variables from input data using vectorized functions
 mccooki=mccooki %>% 
   mutate(light.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=1, end=1)) %>% 
   mutate(substrate.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=3, end=3)) %>%
@@ -14,43 +14,53 @@ mccooki=mccooki %>%
 
 mccooki
 
-model1 <- glm(cop.success~ Fcond + light.condition + substrate.condition + Fcond*light.condition + Fcond*substrate.condition + light.condition*substrate.condition, family=binomial(link="logit"),data=mccooki)
+#Model 1- Question: Did the signaling environment and/or female diet influence copulation success in the simultaneous choice test?
+#Dai:Don't need to redundantly add separate terms and interaction terms in the model: this is enough-adding interaction terms automatically shows the effects of each terms as well
+model1 <- glm(cop.success~ Fcond*light.condition*substrate.condition, family=binomial(link="logit"),data=mccooki)
 summary(model1)
 anova(model1, test="Chisq") #to get overall effects of factors (without reference level) from glm, use the argument test="Chisq"
 
-#my trial 20231102
 
-mccooki=mccooki %>% 
-  mutate_all(na_if, "")
-mccooki[is.na(mccooki)] <- ""
 
-#let's run multinomial logistic regression with 1st copulated males(high/low diet/NA; 3 factors) as response variables
-colnames(mccooki)[colnames(mccooki) == "X1st.Cop.Male"] ="firstcop.male"
+#let's run multinomial logistic regression analysis  where the response variable is 1st copulated males categorized by three factors: "high/low diet/NA."
+colnames(mccooki)[colnames(mccooki) == "X1st.Cop.Male"] ="firstcop.male" #change weird column name
 colnames(mccooki)
 mccooki$firstcop.male <-as.factor (mccooki$firstcop.male)
 mccooki$Fcond <-as.factor (mccooki$Fcond)
 mccooki$light.condition <-as.factor(mccooki$light.condition)
 mccooki$substrate.condition <-as.factor(mccooki$substrate.condition)
 
-#this is redundant
-model2 <-multinom(firstcop.male ~ Fcond +light.condition + substrate.condition + Fcond*light.condition + Fcond*substrate.condition + light.condition*substrate.condition + light.condition*substrate.condition*Fcond ,data=mccooki) 
+library(nnet)
 
-#this is enough-Dai
-model2 <-multinom(firstcop.male ~ Fcond *light.condition * substrate.condition ,data=mccooki) 
+
+#Model 2&3 -question: Did the signaling environment and/or female diet influence the female choice between high- and low-diet males for copulation?
+model2 <-multinom(firstcop.male ~ light.condition * substrate.condition ,data=mccooki) 
 summary(model2)
 
-model3 <-multinom(firstcop.male ~ light.condition*substrate.condition, data=mccooki)
+model3 <-multinom(firstcop.male ~ Fcond *light.condition * substrate.condition, data=mccooki)
 summary(model3)
 
-#tried to run two-tailed Z test and p-value
+##Getting p-value from model 2&3.
+## Wald-Z test vs LRT to choose the best predictor?
+#First trial: 2-tailed Wald-Z test to test significance of coefficients?
 z <- summary(model3)$coefficients/summary(model3)$standard.errors
 z
 p <- (1 - pnorm(abs(z), 0, 1)) * 2
 p
 
-#let's make a messy tables with coefficient + p-value.....
-rbind(model_summary2$coefficients[1,],model_summary2$standard.errors[1,],z[1,],p[1,])
-rownames(mccooki) <- c("Coefficient","Std. Errors","z stat","p value")
-knitr::kable(mccooki)
 
-anova(model2)
+#Second trial: likelihood ratio test to compare the fit of model 2&3 
+install.packages("lmtest")
+library(lmtest)
+lrtest(model3, model2)
+#The results indicate that the complete model did not demonstrate a better fit, suggesting that female diet did not have a significant effect on female choice between high- and low-diet males in a simultaneous choice test??
+
+
+#using a different way to run LRT?
+#no significant effects of either the signaling environment or the female diet on female choice?
+install.packages("MASS")
+library(MASS)
+model4<-multinom(firstcop.male ~ Fcond + light.condition + substrate.condition, data=mccooki)
+summary(model4)
+confint(model4)
+MASS::dropterm(model4, trace=FALSE, test="Chisq")
