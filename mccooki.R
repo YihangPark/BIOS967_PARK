@@ -43,6 +43,7 @@ summary(model3)
 ##Getting p-value from model 2&3.
 ## Wald-Z test vs LRT to choose the best predictor?
 #First trial: 2-tailed Wald-Z test to test significance of coefficients?
+#no effects?
 z <- summary(model3)$coefficients/summary(model3)$standard.errors
 z
 p <- (1 - pnorm(abs(z), 0, 1)) * 2
@@ -50,10 +51,14 @@ p
 
 
 #Second trial: likelihood ratio test to compare the fit of model 2&3 
+#The results indicate that the complete model did not demonstrate a better fit, suggesting that female diet did not have a significant effect on female choice between high- and low-diet males in a simultaneous choice test??
 install.packages("lmtest")
 library(lmtest)
 lrtest(model3, model2)
-#The results indicate that the complete model did not demonstrate a better fit, suggesting that female diet did not have a significant effect on female choice between high- and low-diet males in a simultaneous choice test??
+#Likelihood ratio test
+#Df  LogLik Df  Chisq Pr(>Chisq)
+#1  16 -89.357                     
+#2   8 -95.485 -8 12.254     0.1402
 
 
 #using a different way to run LRT?
@@ -64,3 +69,8 @@ model4<-multinom(firstcop.male ~ Fcond + light.condition + substrate.condition, 
 summary(model4)
 confint(model4)
 MASS::dropterm(model4, trace=FALSE, test="Chisq")
+#Df    AIC    LRT Pr(Chi)  
+#<none>                 201.87                 
+#Fcond                2 203.31 5.4465 0.06566 .
+#light.condition      2 197.91 0.0433 0.97858  
+#substrate.condition  2 202.86 4.9909 0.08246 .
