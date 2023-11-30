@@ -93,8 +93,8 @@ mccooki %>% select(Cond..Lt.S., firstcop.male) %>%
 
 
 # Plotting the two-colored bar graph
-ggplot(data=mccooki, aes(x = Cond..Lt.S., y =  , fill = firstcop.male)) +
-  geom_bar(stat = "identity", position = "dodge") +
+ggplot(data=mccooki, aes(x = Cond..Lt.S., y = cop.success, fill = firstcop.male)) +
+  geom_col( position = "fill") +
   scale_fill_manual(values = c("black", "white")) +
   labs(x = "Category", y = "Proportion") 
 
