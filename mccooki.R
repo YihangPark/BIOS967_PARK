@@ -12,6 +12,8 @@ mccooki=mccooki %>%
   mutate(cop.success=(X1st.cop.Time!="")+0)
 
 
+
+
 #Model 1- Question: Did the signaling environment and/or female diet influence copulation success in the simultaneous choice test?
 #Dai:Don't need to redundantly add separate terms and interaction terms in the model: this is enough-adding interaction terms automatically shows the effects of each terms as well
 model1 <- glm(cop.success~ Fcond*light.condition*substrate.condition, family=binomial(link="logit"),data=mccooki)
@@ -34,7 +36,8 @@ mccooki2 <- mccooki %>%
   filter(!firstcop.male=="na") %>% 
   mutate(firstcop.male = factor(firstcop.male))
 
-
+mccooki2$Cond..Lt.S.<- factor(mccooki2$Cond..Lt.S., levels= c("+/+", "+/-", "-/+", "-/-"))
+mccooki$Cond..Lt.S.<- factor(mccooki$Cond..Lt.S., levels= c("+/+", "+/-", "-/+", "-/-"))
 
 #Model 2&3 -question: Did the signaling environment and/or female diet influence the female choice between high- and low-diet males for copulation?
 
@@ -48,12 +51,12 @@ model3 <-multinom(firstcop.male ~ light.condition + substrate.condition ,data=mc
 model4 <-multinom(firstcop.male ~ light.condition * substrate.condition ,data=mccooki)
 model5 <-multinom(firstcop.male ~ Fcond + light.condition + substrate.condition, data=mccooki)
 model5 <-multinom(firstcop.male ~ Fcond + light.condition * substrate.condition ,data=mccooki)
-model6 <-multinom(firstcop.male ~ Fcond * light.condition ,data=mccooki2)
+model6 <-multinom(firstcop.male ~ Fcond * light.condition + Fcond*substrate.condition ,data=mccooki2)
 model7 <-multinom(firstcop.male ~ Fcond * light.condition * substrate.condition ,data=mccooki2)
-
+summary(model7)
 #Choose a model by AIC in a stepwise algorithm
 model8 <-step(model7)
-
+summary(model8)
 ##Getting p-value from model 2&3.
 ## Wald-Z test vs LRT to choose the best predictor?
 #First trial: 2-tailed Wald-Z test to test significance of coefficients?
@@ -108,6 +111,29 @@ mccooki %>% select(Cond..Lt.S., firstcop.male) %>%
 
 
 # Plotting the two-colored bar graph
+
+
+##figure 1: Does the condition of the female and the signaling environment influence copulation success or female receptivity?
+mccooki <- mccooki %>% 
+  group_by(Cond..Lt.S., Fcond) %>% 
+  mutate(Proportion = mean(cop.success))
+
+ggplot(data=mccooki, aes(x = Cond..Lt.S., y = Proportion, fill = Fcond)) +
+  geom_bar(stat = "identity", position = "dodge")+
+  labs( x= "Signaling environment (Light/Substrate)", y= "Proportions of Trials with Copulation", fill= "Female Diet")+
+  scale_fill_discrete(labels=c("h" = "High", "l" = "Low"))+
+  ylim(0,1)
+
+copsuccess  <- multinom(cop.success ~ Fcond ,data=mccooki)
+copsuccess1 <- multinom(cop.success ~ Fcond * light.condition * substrate.condition ,data=mccooki)
+copsuccess2 <- multinom(cop.success ~ Fcond + light.condition + substrate.condition ,data=mccooki)
+#copsUccess3 is one with the lowest AIC
+copsuccess3 <- multinom(cop.success ~ Fcond + light.condition + substrate.condition +Fcond * light.condition + Fcond * substrate.condition, data=mccooki)
+car::Anova(copsuccess)
+
+copstep <- step(copsuccess1)
+
+## main figure: Do female choice vary by signaling environment and male quality?
 ggplot(data=mccooki2, aes(x = Cond..Lt.S., y = cop.success, fill = firstcop.male)) +
   geom_col( position = "fill") +
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "black")+
