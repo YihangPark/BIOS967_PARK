@@ -1,0 +1,145 @@
+---
+title: "Effects of Signaling Environment and Diet Conditions on Mate Choice in the Wolf Spider *Schizocosa mccooki*"
+author: "Yihang Park"
+date: "2023-12-13"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+mccooki <- read.csv("data/mccooki.csv")
+library(tidyverse)
+library(dplyr)
+library(nnet)
+library(car)
+library(lmtest)
+library(ggplot2)
+```
+
+# **Part 0**: Basic data wrangling
+
+Since the raw data is super old and the columns are named and written in an inconvenient manner, let's proceed to tidy up.
+```{r}
+# since both the visual and vibrational signaling environments are coded in a single column in a peculiar manner (+/+, +/-, -/+, -/-), please separate them into individual columns
+# create a binary 'copsuccess' column by converting the 'coptime' column, assigning 1 for copulated and 0 for not copulated
+mccooki=mccooki %>% 
+  mutate(light.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=1, end=1)) %>% 
+  mutate(substrate.condition=pull(mccooki, Cond..Lt.S.) %>% str_sub(start=3, end=3)) %>%
+  mutate(cop.success=(X1st.cop.Time!="")+0) 
+
+# change weird column name
+colnames(mccooki)[colnames(mccooki) == "X1st.Cop.Male"] ="firstcop.male"
+
+# assign categorical variables as a factor
+mccooki$firstcop.male <-as.factor (mccooki$firstcop.male)
+mccooki$Fcond <-as.factor (mccooki$Fcond)
+mccooki$light.condition <-as.factor(mccooki$light.condition)
+mccooki$substrate.condition <-as.factor(mccooki$substrate.condition)
+mccooki$Cond..Lt.S. <-as.factor (mccooki$Cond..Lt.S.)
+```
+
+
+Since in the original data(mccooki) response variable (the first male copulated with female) is 3 levels factor including NAs(High-diet vs low-diet vs NA), make another dataframe (mccooki2) with response variable with 2-levels factor excluding NAs (High-diet vs Low-diet).
+```{r}
+# remove the NAs from the response variable to convert it into a two-level factor (LD vs HD)
+mccooki2 <- mccooki %>% 
+  filter(!firstcop.male=="na") %>% 
+  mutate(firstcop.male = factor(firstcop.male))
+```
+
+
+# **Part 1**: Run various statistical tests!
+
+
+### **1.1**: Did the signaling environment and/or female diet influence whether females copulated during the trial in the simultaneous choice test?
+```{r}
+# Performing a generalized linear model with all covariates included
+glm.copsuccess <- glm(cop.success~ Fcond*light.condition*substrate.condition, family=binomial(link="logit"),data=mccooki2)
+summary(glm.copsuccess)
+```
+none of the predictors showed significance.
+
+### **1.2**: Did the signaling environment and/or female diet influence the female's choice between males on high and low diets for copulation?
+
+Establish multinomial logistic regression models by progressively including different covariates in a hierarchical manner.
+```{r results='hide'}
+
+# let's run multinomial logistic regression analysis  where the response variable is 1st copulated males: Low vs High diet
+model1 <-multinom(firstcop.male ~ light.condition ,data=mccooki2)
+model2 <-multinom(firstcop.male ~ substrate.condition ,data=mccooki2)
+model3 <-multinom(firstcop.male ~ light.condition + substrate.condition ,data=mccooki2) 
+model4 <-multinom(firstcop.male ~ light.condition * substrate.condition ,data=mccooki2)
+model5 <-multinom(firstcop.male ~ Fcond + light.condition * substrate.condition, data=mccooki2)
+model6 <-multinom(firstcop.male ~ Fcond * light.condition * substrate.condition ,data=mccooki2)
+```
+
+#### **1.2.1**: getting p-values for each predictors
+
+##### **1.2.1.1**: ANOVA conducted on the full model including all covariates.
+```{r}
+car::Anova(model6)
+```
+The presence or absence of vibratory signals affected female choice.
+
+
+
+##### **1.2.1.2**: Likelihood ratio tests are conducted to manually compare models and obtain p-values for each predictor.
+```{r}
+# likelihood ratio test to manually compare the fit of models 
+lrtest(model1, model3) #significant effects of vibratory signals
+lrtest(model2, model3) #non-significant effects of visual signals
+lrtest(model3, model4) #non-significant interaction effects of visual/vibratory signals
+lrtest(model4, model5) #non-significant effects of female diet
+```
+The presence or absence of vibratory signals affected female choice.
+
+
+
+##### **1.2.1.3**: To determine the model with the best goodness of fit, let's use a stepwise algorithm to select a model based on AIC. We'll start with a full model containing all covariates (model6).
+```{r}
+AIC.Bestfit <-step(model6)
+```
+The model that solely included the vibratory signal environment as a predictor demonstrated the best goodness of fit.Let's use this model to run an ANOVA and obtain the p-value of the predictor.
+```{r message=FALSE}
+car::Anova(AIC.Bestfit)
+```
+The reduced/best-fit model also suggests that the presence or absence of vibratory signals affected female choice.
+
+# **Part 2**: Plotting
+**Figure 1**: Does the condition of the female and the signaling environment influence copulation success or female receptivity?
+Plot bar graph with x axis is differing signaling environment and y axis is a proportion of trials with copulation
+```{r fig.width=8, fig.height=6}
+# Reorder the sequence of categories displayed on the x-axis
+mccooki$Cond..Lt.S.<- factor(mccooki$Cond..Lt.S., levels= c("+/+", "+/-", "-/+", "-/-"))
+
+# To convert the y-axis into a proportion of trials with copulation (ranging from 0 to 1), create a new column indicating the mean copulation success
+mccooki <- mccooki %>% 
+  group_by(Cond..Lt.S., Fcond) %>% 
+  mutate(Proportion = mean(cop.success))
+
+# Plot a bar graph
+ggplot(data=mccooki, aes(x = Cond..Lt.S., y = Proportion, fill = Fcond)) +
+  geom_bar(stat = "identity", position = "dodge")+
+  labs( x= "Signaling environment (Light/Substrate)", y= "Proportions of Trials with Copulation", fill= "Female Diet")+
+  scale_fill_discrete(labels=c("h" = "High", "l" = "Low"))+
+  ylim(0,1)
+```
+
+
+
+
+**Figure 2**: Do female choice vary by signaling environment and male quality?
+```{r fig.width=8, fig.height=6}
+mccooki2$Cond..Lt.S.<- factor(mccooki2$Cond..Lt.S., levels= c("+/+", "+/-", "-/+", "-/-"))
+ggplot(data=mccooki2, aes(x = Cond..Lt.S., y = cop.success, fill = firstcop.male)) +
+  geom_col( position = "fill") +
+  
+# Insert a vertical line at y=0.5, representing the null hypothesis that females exhibit no preference between low and high diet males in this experiment's simultaneous mate choice.
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black")+
+  labs( x= "Signaling environment (Light/Substrate)", y= "Proportions of Trials with Copulation", fill= "Male Diet")+
+  scale_fill_discrete(labels=c("h" = "High", "l" = "Low"))
+```

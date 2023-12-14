@@ -106,7 +106,7 @@ filter(mccooki, Cond..Lt.S.=="+/+")
 filter(mccooki, Cond..Lt.S.=="+/-")
 filter(mccooki, Cond..Lt.S.=="-/+")
 filter(mccooki, Cond..Lt.S.=="-/-")
-mccooki %>% select(Cond..Lt.S., firstcop.male) %>% 
+
 
 
 
@@ -123,15 +123,16 @@ ggplot(data=mccooki, aes(x = Cond..Lt.S., y = Proportion, fill = Fcond)) +
   labs( x= "Signaling environment (Light/Substrate)", y= "Proportions of Trials with Copulation", fill= "Female Diet")+
   scale_fill_discrete(labels=c("h" = "High", "l" = "Low"))+
   ylim(0,1)
-
-copsuccess  <- multinom(cop.success ~ Fcond ,data=mccooki)
-copsuccess1 <- multinom(cop.success ~ Fcond * light.condition * substrate.condition ,data=mccooki)
-copsuccess2 <- multinom(cop.success ~ Fcond + light.condition + substrate.condition ,data=mccooki)
 #copsUccess3 is one with the lowest AIC
-copsuccess3 <- multinom(cop.success ~ Fcond + light.condition + substrate.condition +Fcond * light.condition + Fcond * substrate.condition, data=mccooki)
-car::Anova(copsuccess)
+copsuccess1 <- multinom(cop.success ~ light.condition, data=mccooki)
+copsuccess2 <- multinom(cop.success ~ substrate.condition, data=mccooki)
+copsuccess3 <- multinom(cop.success ~ light.condition + substrate.condition, data=mccooki)
+copsuccess4 <- multinom(cop.success ~ light.condition*substrate.condition, data=mccooki)
+copsuccess5 <- multinom(cop.success ~ Fcond + light.condition*substrate.condition, data=mccooki)
+copsuccess6 <- multinom(cop.success ~ Fcond*light.condition*substrate.condition, data=mccooki)
+car::Anova(copsuccess6)
 
-copstep <- step(copsuccess1)
+copstep <- step(copsuccess6)
 
 ## main figure: Do female choice vary by signaling environment and male quality?
 ggplot(data=mccooki2, aes(x = Cond..Lt.S., y = cop.success, fill = firstcop.male)) +
@@ -139,3 +140,5 @@ ggplot(data=mccooki2, aes(x = Cond..Lt.S., y = cop.success, fill = firstcop.male
   geom_hline(yintercept = 0.5, linetype = "dashed", color = "black")+
   labs( x= "Signaling environment (Light/Substrate)", y= "Proportions of Trials with Copulation", fill= "Male Diet")+
   scale_fill_discrete(labels=c("h" = "High", "l" = "Low"))
+
+
